@@ -47,7 +47,7 @@ This project is a Flask-based chatbot that mimics characters based on PDF upload
 
 ## Note
 
-This is a demo project using a dummy API key. For production use, you should:
+This is a demo project using gemini-2.0-pro-exp API key which is in experimental phase right now. For production use, you should:
 - Use a proper database to store character descriptions
 - Implement proper error handling
 - Add user authentication
