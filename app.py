@@ -15,7 +15,7 @@ if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY not found in environment variables. Please check your .env file.")
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-pro')  # Changed from gemini-1.5-flash to gemini-pro as it's more stable
+model = genai.GenerativeModel('gemini-2.0-pro-exp')  # Changed from gemini-1.5-flash to gemini-pro as it's more stable
 
 # Store character descriptions and chat history in memory (in a real app, you'd use a database)
 characters = {}
