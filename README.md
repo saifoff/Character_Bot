@@ -3,7 +3,7 @@
 This project is a Flask-based chatbot that mimics characters based on PDF uploads or character descriptions. It integrates with Google's Gemini API to generate responses based on the input character's description. This way user can chat with their faviourit character. 
 
 
-![Alt Text](https://github.com/saifoff/Character_Bot/blob/main/demo.gif)
+![Demo](https://github.com/saifoff/Character_Bot/blob/main/demo.gif)
 
 
 ## Features
@@ -12,6 +12,9 @@ This project is a Flask-based chatbot that mimics characters based on PDF upload
 - Manually enter character descriptions
 - Chat with the AI-powered character
 - Modern, responsive UI using Tailwind CSS
+
+![Example 1](Ironman.png)
+![Example 2](Himu.png)
 
 ## Setup
 
