@@ -1,7 +1,6 @@
 # Character Chatbot
 
-This project is a Flask-based chatbot that mimics characters based on PDF uploads or character descriptions. It integrates with Google's Gemini API to generate responses based on the input character's description. This way user can chat with their faviourit character. 
-
+The Character Chatbot is an interactive application that allows users to create and chat with AI-powered characters based on detailed descriptions or PDF uploads. By using Flask and the Google Gemini API, this project enables creators, writers, and marketers to bring characters to life for storytelling, virtual assistants, or interactive experiences. The chatbot responds based on the provided descriptions, making it a valuable tool for engaging audiences in personalized, character-driven content. The user-friendly interface, built with Tailwind CSS, ensures a seamless and modern experience.
 
 ![Demo](https://github.com/saifoff/Character_Bot/blob/main/demo.gif)
 
