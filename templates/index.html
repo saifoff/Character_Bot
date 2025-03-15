@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: calc(100vh - 300px);
+        }
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background-color: #202123;
+            color: white;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .main-content {
+            margin-left: 260px;
+            padding: 1rem;
+        }
+        .mic-button {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+        }
+        .mic-button.recording {
+            color: red;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .voice-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="mb-4">
+            <button onclick="showNewChatModal()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                New Character
+            </button>
+        </div>
+        <div id="characters-list" class="space-y-2">
+            <!-- Characters will be listed here -->
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 class="text-3xl font-bold text-center mb-8">Character Chatbot</h1>
+        
+        <!-- Character Setup Modal -->
+        <div id="character-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h2 class="text-xl font-semibold mb-4">Create New Character</h2>
+                
+                <!-- Character Name -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="character-name">
+                        Character Name
+                    </label>
+                    <input type="text" id="character-name" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- PDF Upload -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="pdf-upload">
+                        Upload Character PDF
+                    </label>
+                    <input type="file" id="pdf-upload" accept=".pdf" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100">
+                </div>
+
+                <!-- Character Description -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="character-description">
+                        Or Enter Character Description
+                    </label>
+                    <textarea id="character-description" rows="4" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-2">
+                    <button onclick="hideNewChatModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                        Cancel
+                    </button>
+                    <button onclick="createCharacter()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div id="chat-messages" class="chat-container overflow-y-auto mb-4 space-y-4">
+                <!-- Messages will be added here -->
+            </div>
+            
+            <div class="flex gap-2 items-center">
+                <input type="text" id="message-input" placeholder="Type your message..." 
+                    class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="voice-controls">
+                    <button id="mic-button" class="mic-button text-2xl" onclick="toggleVoiceInput()">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="speak-toggle" class="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300" onclick="toggleTextToSpeech()">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </div>
+                <button onclick="sendMessage()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentCharacterId = null;
+        let characters = [];
+        let isRecording = false;
+        let recognition = null;
+        let textToSpeechEnabled = false;
+
+        // Load characters on page load
+        document.addEventListener('DOMContentLoaded', loadCharacters);
+
+        async function loadCharacters() {
+            try {
+                const response = await fetch('/get_characters');
+                const data = await response.json();
+                if (data.success) {
+                    characters = data.characters;
+                    updateCharactersList();
+                }
+            } catch (error) {
+                console.error('Error loading characters:', error);
+            }
+        }
+
+        function updateCharactersList() {
+            const charactersList = document.getElementById('characters-list');
+            charactersList.innerHTML = '';
+            
+            characters.forEach(char => {
+                const charElement = document.createElement('div');
+                charElement.className = `p-2 rounded cursor-pointer hover:bg-gray-700 ${currentCharacterId === char.id ? 'bg-gray-700' : ''}`;
+                charElement.innerHTML = `
+                    <div class="font-medium">${char.name}</div>
+                    <div class="text-sm text-gray-400">${new Date(char.created_at).toLocaleDateString()}</div>
+                `;
+                charElement.onclick = () => selectCharacter(char.id);
+                charactersList.appendChild(charElement);
+            });
+        }
+
+        async function selectCharacter(characterId) {
+            // Stop any ongoing speech when switching characters
+            stopSpeaking();
+            
+            currentCharacterId = characterId;
+            updateCharactersList();
+            
+            // Clear current chat
+            document.getElementById('chat-messages').innerHTML = '';
+            
+            // Temporarily disable text-to-speech while loading history
+            const wasEnabled = textToSpeechEnabled;
+            textToSpeechEnabled = false;
+            
+            // Load chat history
+            try {
+                const response = await fetch(`/get_chat_history/${characterId}`);
+                const data = await response.json();
+                if (data.success) {
+                    data.chat_history.forEach(msg => {
+                        addMessageToChat(
+                            msg.role === 'user' ? 'You' : characters.find(c => c.id === characterId).name,
+                            msg.content,
+                            msg.role,
+                            true // Skip speech for history messages
+                        );
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+                addMessageToChat('System', 'Error loading chat history', 'system');
+            }
+            
+            // Restore text-to-speech setting
+            textToSpeechEnabled = wasEnabled;
+        }
+
+        function showNewChatModal() {
+            document.getElementById('character-modal').classList.remove('hidden');
+        }
+
+        function hideNewChatModal() {
+            document.getElementById('character-modal').classList.add('hidden');
+            document.getElementById('character-name').value = '';
+            document.getElementById('pdf-upload').value = '';
+            document.getElementById('character-description').value = '';
+        }
+
+        async function createCharacter() {
+            const name = document.getElementById('character-name').value.trim();
+            const pdfFile = document.getElementById('pdf-upload').files[0];
+            const description = document.getElementById('character-description').value.trim();
+
+            if (!name) {
+                alert('Please enter a character name');
+                return;
+            }
+
+            if (pdfFile) {
+                const formData = new FormData();
+                formData.append('pdf_file', pdfFile);
+                formData.append('name', name);
+
+                try {
+                    const response = await fetch('/upload_character', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        characters.push({
+                            id: data.character_id,
+                            name: data.name,
+                            created_at: new Date().toISOString()
+                        });
+                        updateCharactersList();
+                        hideNewChatModal();
+                        currentCharacterId = data.character_id; // Set the current character ID
+                        selectCharacter(data.character_id);
+                        checkCharacterSelection();
+                    } else {
+                        alert('Error creating character: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Error creating character: ' + error);
+                }
+            } else if (description) {
+                try {
+                    const response = await fetch('/set_character_description', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name, description })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        characters.push({
+                            id: data.character_id,
+                            name: data.name,
+                            created_at: new Date().toISOString()
+                        });
+                        updateCharactersList();
+                        hideNewChatModal();
+                        currentCharacterId = data.character_id; // Set the current character ID
+                        selectCharacter(data.character_id);
+                        checkCharacterSelection();
+                    } else {
+                        alert('Error creating character: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Error creating character: ' + error);
+                }
+            } else {
+                alert('Please either upload a PDF or enter a character description');
+            }
+        }
+
+        async function sendMessage() {
+            if (!currentCharacterId) {
+                alert('Please select or create a character first!');
+                return;
+            }
+
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessageToChat('You', message, 'user');
+            messageInput.value = '';
+
+            try {
+                console.log('Sending message with character_id:', currentCharacterId); // Debug log
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message,
+                        character_id: currentCharacterId
+                    })
+                });
+                const data = await response.json();
+                console.log('Received response:', data); // Debug log
+                
+                if (data.success) {
+                    addMessageToChat(data.character_name, data.response, 'character');
+                } else {
+                    addMessageToChat('System', 'Error: ' + data.error, 'system');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error); // Debug log
+                addMessageToChat('System', 'Error: ' + error, 'system');
+            }
+        }
+
+        function addMessageToChat(sender, message, type, skipSpeech = false) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `p-3 rounded-lg ${
+                type === 'user' ? 'bg-blue-100 ml-auto' :
+                type === 'character' ? 'bg-green-100' :
+                'bg-red-100'
+            } max-w-[80%] ${type === 'user' ? 'ml-auto' : 'mr-auto'}`;
+            
+            const senderDiv = document.createElement('div');
+            senderDiv.className = 'font-bold text-sm mb-1';
+            senderDiv.textContent = sender;
+            
+            const messageText = document.createElement('div');
+            messageText.className = 'text-gray-800';
+            messageText.textContent = message;
+            
+            messageDiv.appendChild(senderDiv);
+            messageDiv.appendChild(messageText);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Speak character's response if text-to-speech is enabled and not loading history
+            if (type === 'character' && !skipSpeech) {
+                speakText(message);
+            }
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Add this function to check character selection
+        function checkCharacterSelection() {
+            if (!currentCharacterId) {
+                const messageInput = document.getElementById('message-input');
+                messageInput.placeholder = 'Select or create a character first...';
+                messageInput.disabled = true;
+            } else {
+                const messageInput = document.getElementById('message-input');
+                messageInput.placeholder = 'Type your message...';
+                messageInput.disabled = false;
+            }
+        }
+
+        // Toggle voice input
+        function toggleVoiceInput() {
+            if (!recognition) {
+                initializeSpeechRecognition();
+            }
+
+            // Stop any ongoing speech before starting new recording
+            stopSpeaking();
+
+            if (!isRecording) {
+                startVoiceInput();
+            } else {
+                stopVoiceInput();
+            }
+        }
+
+        // Start voice input
+        function startVoiceInput() {
+            if (recognition) {
+                // Stop any ongoing speech before starting recording
+                stopSpeaking();
+                recognition.start();
+                isRecording = true;
+                const micButton = document.getElementById('mic-button');
+                micButton.classList.add('recording');
+            }
+        }
+
+        // Stop voice input
+        function stopVoiceInput() {
+            if (recognition) {
+                recognition.stop();
+                isRecording = false;
+                const micButton = document.getElementById('mic-button');
+                micButton.classList.remove('recording');
+            }
+        }
+
+        // Toggle text-to-speech
+        function toggleTextToSpeech() {
+            textToSpeechEnabled = !textToSpeechEnabled;
+            const speakToggle = document.getElementById('speak-toggle');
+            speakToggle.classList.toggle('bg-blue-500');
+            speakToggle.classList.toggle('text-white');
+            
+            // If turning off, stop any ongoing speech
+            if (!textToSpeechEnabled) {
+                stopSpeaking();
+            }
+        }
+
+        // Stop any ongoing speech
+        function stopSpeaking() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        // Speak text using text-to-speech
+        function speakText(text) {
+            if (textToSpeechEnabled && 'speechSynthesis' in window) {
+                // Stop any ongoing speech first
+                stopSpeaking();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                
+                // Remove the click anywhere listener and only stop on voice control clicks
+                const voiceControls = document.querySelector('.voice-controls');
+                const stopSpeakingHandler = (e) => {
+                    if (voiceControls.contains(e.target)) {
+                        stopSpeaking();
+                        voiceControls.removeEventListener('click', stopSpeakingHandler);
+                    }
+                };
+                voiceControls.addEventListener('click', stopSpeakingHandler);
+                
+                // Remove event listener when speech ends naturally
+                utterance.onend = () => {
+                    voiceControls.removeEventListener('click', stopSpeakingHandler);
+                };
+                
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Initialize speech recognition
+        function initializeSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('message-input').value = transcript;
+                    sendMessage();
+                };
+
+                recognition.onend = function() {
+                    stopVoiceInput();
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    stopVoiceInput();
+                    alert('Speech recognition error: ' + event.error);
+                };
+            } else {
+                alert('Speech recognition is not supported in your browser.');
+            }
+        }
+
+        // Add event listener for character selection
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCharacters();
+            checkCharacterSelection();
+            initializeSpeechRecognition();
+        });
+    </script>
+</body>
+</html> 
