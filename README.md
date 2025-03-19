@@ -36,7 +36,7 @@ The Character Chatbot is an interactive application that allows users to create 
 
 ## Usage
 
-1. Set up a character by either:
+1. Set up a character by either:-
    - Uploading a PDF file containing the character's description
    - Manually entering the character's description in the text area
 
